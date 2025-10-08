@@ -8,12 +8,12 @@ describe('Registro', () => {
                 .post('/users/register')
                 .set('Content-Type', 'application/json')
                 .send({
-                    'username': 'usuario' + Date.now(), // evitar duplicados
+                    'username': 'francisco',
                     'password': '123456',
-                    'favorecidos':['string']
+                    'favorecidos':['camila']
                 });
 
-            console.log(resposta.status);
+            console.log('Status:', resposta.statusCode);
             console.log(resposta.body);
 
             expect(resposta.status).to.equal(201);

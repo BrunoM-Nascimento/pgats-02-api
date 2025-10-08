@@ -8,7 +8,7 @@ describe('Lista de Usuários', () => {
                 .get('/users')
                 .set('Content-Type', 'application/json');
 
-            console.log(resposta.status);
+            console.log('Status:', resposta.statusCode);
             console.log(resposta.body);
 
             expect(resposta.status).to.equal(200);
