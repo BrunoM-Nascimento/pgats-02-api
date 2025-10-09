@@ -78,8 +78,6 @@ describe('Testes de Transferências', () => {
         expect(resposta.statusCode).to.equal(401);
     });
 
-
-
 });
 
    
