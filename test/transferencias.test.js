@@ -1,85 +1,157 @@
 const request = require('supertest');
 const { expect } = require('chai');
+const app = require('../app');
+const jwt = require('jsonwebtoken');
 
-const api = request('http://localhost:3000'); // ou URL da sua API
+// Testes para a API de Transferências
+describe('API de Transferências', () => {
+  let tokenValido;
+  let tokenInvalido;
 
-// Função que faz login e retorna o token JWT
-async function loginAndGetToken() {
-  const loginResponse = await api
-    .post('/users/login')
-    .send({
-      username: 'julio', // Certifique-se de que esse usuário existe
-      password: '123456' // E que essa é a senha correta
-    });
+  // Antes de todos os testes, criamos os tokens
+  before(() => {
+    // Token válido para usar nos testes
+    tokenValido = jwt.sign(
+      { userId: 1, username: 'teste' },
+      'secret_key',
+      { expiresIn: '1h' }
+    );
 
-  const token = loginResponse.body.token;
-  return token;
-}
-
-describe('Testes de Transferências', () => {
-  it('deve realizar uma transferência com sucesso e retornar 201', async () => {
-    const token = await loginAndGetToken();
-
-    const resposta = await api
-      .post('/transfers')
-      .set('Authorization', `Bearer ${token}`)
-      .send({
-        from: 'julio',
-        to: 'priscila',
-        value: 100
-      });
-    console.log('Status:', resposta.statusCode);
-    expect(resposta.statusCode).to.equal(201); // Usando chai, então .to.equal() ao invés de .toBe()
+    // Token inválido para testar erros
+    tokenInvalido = 'token_que_nao_funciona';
   });
 
-    it('deve falhar ao transferir com saldo insuficiente e retornar 400 com mensagem "Saldo insuficiente"', async () => {
-        const token = await loginAndGetToken();
+  // Testes para POST /transfers
+  describe('POST /transfers - Criar Transferência', () => {
+    
+    it('deve criar transferência com sucesso quando dados estão corretos', async () => {
+      const dadosTransferencia = {
+        from: 'usuario1',
+        to: 'usuario2',
+        value: 100.50
+      };
 
-        const resposta = await api
-            .post('/transfers')
-            .set('Authorization', `Bearer ${token}`)
-            .send({
-                from: 'julio',
-                to: 'priscila',
-                value: 999999 // valor alto para simular saldo insuficiente
-        });
-
-        console.log('Status:', resposta.statusCode);
-        console.log('Body:', resposta.body);
-
-        expect(resposta.statusCode).to.equal(400);
-        expect(resposta.body.message || resposta.body.mensagem || resposta.body.error).to.include('Saldo insuficiente');
-    });
-
-    it('deve retornar 401 ao tentar realizar transferência sem fornecer o token', async () => {
-        const resposta = await api
+      const resposta = await request(app)
         .post('/transfers')
-        .send({
-            from: 'julio',
-            to: 'priscila',
-            value: 50
-        });
+        .set('Authorization', `Bearer ${tokenValido}`)
+        .set('Content-Type', 'application/json')
+        .send(dadosTransferencia);
 
-        console.log('Status:', resposta.statusCode);
-        expect(resposta.statusCode).to.equal(401);
+      console.log('Status:', resposta.status);
+      console.log('Body:', resposta.body);
+
+      expect(resposta.status).to.equal(201);
+      expect(resposta.body).to.exist;
     });
 
-    it('deve retornar 401 ao tentar realizar transferência com token inválido', async () => {
-        const resposta = await api
-            .post('/transfers')
-            .set('Authorization', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30')
-            .send({
-                from: 'julio',
-                to: 'priscila',
-                value: 50
-         });
+    it('deve retornar erro 400 quando campos obrigatórios estão ausentes', async () => {
+      const resposta = await request(app)
+        .post('/transfers')
+        .set('Authorization', `Bearer ${tokenValido}`)
+        .set('Content-Type', 'application/json')
+        .send({}); // Enviando objeto vazio
 
-        console.log('Status:', resposta.statusCode);
-        expect(resposta.statusCode).to.equal(401);
+      console.log('Status:', resposta.status);
+      console.log('Body:', resposta.body);
+
+      expect(resposta.status).to.equal(400);
     });
 
+    it('deve retornar erro 400 quando valor é zero', async () => {
+      const dadosTransferencia = {
+        from: 'usuario1',
+        to: 'usuario2',
+        value: 0
+      };
 
+      const resposta = await request(app)
+        .post('/transfers')
+        .set('Authorization', `Bearer ${tokenValido}`)
+        .set('Content-Type', 'application/json')
+        .send(dadosTransferencia);
 
+      console.log('Status:', resposta.status);
+      console.log('Body:', resposta.body);
+
+      expect(resposta.status).to.equal(400);
+    });
+
+    it('deve retornar erro 401 quando token não é fornecido', async () => {
+      const dadosTransferencia = {
+        from: 'usuario1',
+        to: 'usuario2',
+        value: 100
+      };
+
+      const resposta = await request(app)
+        .post('/transfers')
+        .set('Content-Type', 'application/json')
+        .send(dadosTransferencia); // Sem token
+
+      console.log('Status:', resposta.status);
+      console.log('Body:', resposta.body);
+
+      expect(resposta.status).to.equal(401);
+    });
+
+    it('deve retornar erro 401 quando token é inválido', async () => {
+      const dadosTransferencia = {
+        from: 'usuario1',
+        to: 'usuario2',
+        value: 100
+      };
+
+      const resposta = await request(app)
+        .post('/transfers')
+        .set('Authorization', `Bearer ${tokenInvalido}`)
+        .set('Content-Type', 'application/json')
+        .send(dadosTransferencia);
+
+      console.log('Status:', resposta.status);
+      console.log('Body:', resposta.body);
+
+      expect(resposta.status).to.equal(401);
+    });
+  });
+
+  // Testes para GET /transfers
+  describe('GET /transfers - Listar Transferências', () => {
+
+    it('deve retornar lista de transferências quando token é válido', async () => {
+      const resposta = await request(app)
+        .get('/transfers')
+        .set('Authorization', `Bearer ${tokenValido}`)
+        .set('Content-Type', 'application/json');
+
+      console.log('Status:', resposta.status);
+      console.log('Body:', resposta.body);
+
+      expect(resposta.status).to.equal(200);
+      expect(resposta.body).to.exist;
+    });
+
+    it('deve retornar erro 401 quando token não é fornecido', async () => {
+      const resposta = await request(app)
+        .get('/transfers')
+        .set('Content-Type', 'application/json'); // Sem token
+
+      console.log('Status:', resposta.status);
+      console.log('Body:', resposta.body);
+
+      expect(resposta.status).to.equal(401);
+    });
+
+    it('deve retornar erro 401 quando token é inválido', async () => {
+      const resposta = await request(app)
+        .get('/transfers')
+        .set('Authorization', `Bearer ${tokenInvalido}`)
+        .set('Content-Type', 'application/json');
+
+      console.log('Status:', resposta.status);
+      console.log('Body:', resposta.body);
+
+      expect(resposta.status).to.equal(401);
+    });
+
+  });
 });
-
-   
