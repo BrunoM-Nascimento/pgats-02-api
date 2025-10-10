@@ -10,7 +10,7 @@ describe('Registro', () => {
                 .send({
                     'username': 'francisco',
                     'password': '123456',
-                    'favorecidos':['camila']
+                    'favorecidos':['julio']
                 });
 
             console.log('Status:', resposta.statusCode);
